@@ -112,7 +112,7 @@ class ProjectService {
         if (!role) {
             throw new NotFoundError(`Could not fine roleId=${roleId}`);
         }
-        await this.accessService.addUserToRole(user, role);
+        await this.accessService.addUserToRole(user.id, role.id);
     }
 }
 

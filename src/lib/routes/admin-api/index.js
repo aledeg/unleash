@@ -15,6 +15,7 @@ const TagController = require('./tag');
 const TagTypeController = require('./tag-type');
 const AddonController = require('./addon');
 const apiDef = require('./api-def.json');
+const RbacController = require('./rbac');
 
 class AdminApi extends Controller {
     constructor(config, services) {
@@ -58,6 +59,7 @@ class AdminApi extends Controller {
             new TagTypeController(config, services).router,
         );
         this.app.use('/addons', new AddonController(config, services).router);
+        this.app.use('/rbac', new RbacController(config, services).router);
     }
 
     index(req, res) {

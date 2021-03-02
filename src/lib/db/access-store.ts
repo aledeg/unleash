@@ -137,4 +137,18 @@ export class AccessStore {
         }));
         return this.db.batchInsert(T.ROLE_PERMISSION, rows);
     }
+
+    async removePermissionFromRole(
+        roleId: number,
+        permission: string,
+        projectName?: string,
+    ): Promise<void> {
+        return this.db(T.ROLE_PERMISSION)
+            .where({
+                role_id: roleId,
+                permission,
+                project: projectName,
+            })
+            .delete();
+    }
 }

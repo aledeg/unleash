@@ -21,7 +21,7 @@ const createUserWithRegularAccess = async (name, email) => {
     const user = await userStore.insert(new User({ name, email }));
     const roles = await accessService.getRoles();
     const regularRole = roles.find(r => r.name === 'Regular');
-    await accessService.addUserToRole(user, regularRole);
+    await accessService.addUserToRole(user.id, regularRole.id);
     return user;
 };
 
@@ -32,7 +32,7 @@ const createSuperUser = async () => {
     );
     const roles = await accessService.getRoles();
     const superRole = roles.find(r => r.name === 'Super User');
-    await accessService.addUserToRole(user, superRole);
+    await accessService.addUserToRole(user.id, superRole.id);
     return user;
 };
 
@@ -179,7 +179,7 @@ test.serial('should grant user access to project', async t => {
     const roles = await accessService.getRolesForProject(project);
 
     const regularRole = roles.find(r => r.name === `${project} Regular`);
-    await accessService.addUserToRole(sUser, regularRole);
+    await accessService.addUserToRole(sUser.id, regularRole.id);
 
     // Should be able to update feature toggles inside the project
     t.true(await accessService.hasPermission(sUser, CREATE_FEATURE, project));
@@ -199,14 +199,14 @@ test.serial('should remove user from role', async t => {
 
     const roles = await accessService.getRoles();
     const regularRole = roles.find(r => r.name === 'Regular');
-    await accessService.addUserToRole(user, regularRole);
+    await accessService.addUserToRole(user.id, regularRole.id);
 
     // check user has one role
     const userRoles = await accessService.getRolesForUser(user);
     t.is(userRoles.length, 1);
     t.is(userRoles[0].name, 'Regular');
 
-    await accessService.removeUserFromRole(user, regularRole);
+    await accessService.removeUserFromRole(user.id, regularRole.id);
     const userRolesAfterRemove = await accessService.getRolesForUser(user);
     t.is(userRolesAfterRemove.length, 0);
 });
@@ -219,7 +219,7 @@ test.serial('should return role with users', async t => {
 
     const roles = await accessService.getRoles();
     const regularRole = roles.find(r => r.name === 'Regular');
-    await accessService.addUserToRole(user, regularRole);
+    await accessService.addUserToRole(user.id, regularRole.id);
 
     const roleWithUsers = await accessService.getRoleUsers(regularRole.id);
 
@@ -237,7 +237,7 @@ test.serial('should return role with permissions and users', async t => {
 
     const roles = await accessService.getRoles();
     const regularRole = roles.find(r => r.name === 'Regular');
-    await accessService.addUserToRole(user, regularRole);
+    await accessService.addUserToRole(user.id, regularRole.id);
 
     const roleWithPermission = await accessService.getRole(regularRole.id);
 

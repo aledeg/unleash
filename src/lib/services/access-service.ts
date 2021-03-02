@@ -1,23 +1,21 @@
 import { throws } from 'assert';
 import { AccessStore, Role, Permission } from '../db/access-store';
-import {
-    ADMIN,
-    UPDATE_PROJECT,
-    DELETE_PROJECT,
-    CREATE_FEATURE,
-    UPDATE_FEATURE,
-    DELETE_FEATURE,
-} from '../permissions';
+import p from '../permissions';
 import User from '../user';
 
+const { ADMIN } = p;
+
 const PROJECT_ADMIN = [
-    UPDATE_PROJECT,
-    DELETE_PROJECT,
-    CREATE_FEATURE,
-    UPDATE_FEATURE,
-    DELETE_FEATURE,
+    p.UPDATE_PROJECT,
+    p.DELETE_PROJECT,
+    p.CREATE_FEATURE,
+    p.UPDATE_FEATURE,
+    p.DELETE_FEATURE,
 ];
-const PROJECT_REGULAR = [CREATE_FEATURE, UPDATE_FEATURE, DELETE_FEATURE];
+
+const PROJECT_REGULAR = [p.CREATE_FEATURE, p.UPDATE_FEATURE, p.DELETE_FEATURE];
+
+const isProjectPermission = permission => PROJECT_ADMIN.includes(permission);
 
 interface Stores {
     accessStore: AccessStore;
@@ -34,6 +32,18 @@ interface RoleData extends RoleUsers {
     permissions: Permission[];
 }
 
+interface IPermission {
+    name: string;
+    type: PermissionType;
+}
+
+enum PermissionType {
+    root='root',
+    project='project',
+}
+
+
+// TODO: Split this in two concerns. 1: Controlling access, 2: managing roles (rbac).
 export class AccessService {
     private store: AccessStore;
 
@@ -41,10 +51,16 @@ export class AccessService {
 
     private logger: Function;
 
+    private permissions: IPermission[];
+
     constructor({ accessStore, userStore }: Stores, { getLogger } : { getLogger: Function}) {
         this.store = accessStore;
         this.userStore = userStore;
         this.logger = getLogger('/services/access-service.ts');
+        this.permissions = Object.values(p).map(p => ({
+            name: p,
+            type: isProjectPermission(p) ? PermissionType.project : PermissionType.root
+        }))
     }
 
     async hasPermission(user: User, permission: string, projectName?: string): Promise<boolean> {
@@ -54,12 +70,30 @@ export class AccessService {
             .some(p => p.permission === permission || p.permission === ADMIN);
     }
 
-    async addUserToRole(user: User, role: Role) {
-        return this.store.addUserToRole(user.id, role.id);
+    getPermissions(): IPermission[] {
+        return this.permissions;
     }
 
-    async removeUserFromRole(user: User, role: Role) {
-        return this.store.removeUserFromRole(user.id, role.id);
+    async addUserToRole(userId: number, roleId: number) {
+        return this.store.addUserToRole(userId, roleId);
+    }
+
+    async removeUserFromRole(userId: number, roleId: number) {
+        return this.store.removeUserFromRole(userId, roleId);
+    }
+
+    async addPermissionToRole(roleId: number, permission: string, projectName?: string) {
+        if(isProjectPermission(permission) && !projectName) {
+            throw new Error('You must define a project.')
+        } 
+        return this.store.addPermissionsToRole(roleId, [permission], projectName);
+    }
+
+    async removePermissionFromRole(roleId: number, permission: string, projectName?: string) {
+        if(isProjectPermission(permission) && !projectName) {
+            throw new Error('You must define a project.')
+        }
+        return this.store.removePermissionFromRole(roleId, permission, projectName);
     }
 
     async getRoles(): Promise<Role[]> {
@@ -88,7 +122,6 @@ export class AccessService {
             this.store.getRoleWithId(roleId), 
             this.getUsersForRole(roleId)]);
         return {role, users}
-
     }
 
     private async getUsersForRole(roleId) : Promise<User[]> {
