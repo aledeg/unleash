@@ -102,17 +102,46 @@ class ProjectService {
         throw new NameExistsError('A project with this id already exists.');
     }
 
-    async getUsersWithAccess(projectId) {
-        return this.accessService.getProjectRoleUsers(projectId);
+    async getUsersWithAccess(projectId, user) {
+        let [roles, users] = await this.accessService.getProjectRoleUsers(
+            projectId,
+        );
+        if (roles.length === 0) {
+            // ONLY if RBAC is enabled. User should also be required to have CREATE_PROJECT ACCESS!
+            this.logger.warn(`Creating missing roles for project ${projectId}`);
+            await this.accessService.createDefaultProjectRoles(user, projectId);
+            [roles, users] = await this.accessService.getProjectRoleUsers(
+                projectId,
+            );
+        }
+        return {
+            roles,
+            users,
+        };
     }
 
-    async addUser(projectId, roleId, user) {
+    async addUser(projectId, roleId, userId) {
         const roles = await this.accessService.getRolesForProject(projectId);
         const role = roles.find(r => r.id === roleId);
         if (!role) {
-            throw new NotFoundError(`Could not fine roleId=${roleId}`);
+            throw new NotFoundError(
+                `Could not find roleId=${roleId} on project=${projectId}`,
+            );
         }
-        await this.accessService.addUserToRole(user.id, role.id);
+        // TODO: we must also avoid duplicates!
+        await this.accessService.addUserToRole(userId, role.id);
+    }
+
+    async removeUser(projectId, roleId, userId) {
+        const roles = await this.accessService.getRolesForProject(projectId);
+        const role = roles.find(r => r.id === roleId);
+        if (!role) {
+            throw new NotFoundError(
+                `Could not find roleId=${roleId} on project=${projectId}`,
+            );
+        }
+        // TODO: we must also avoid duplicates!
+        await this.accessService.removeUserFromRole(userId, role.id);
     }
 }
 

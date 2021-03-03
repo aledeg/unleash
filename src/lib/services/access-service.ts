@@ -28,7 +28,18 @@ interface RoleUsers {
     users: User[];
 }
 
-interface RoleData extends RoleUsers {
+interface UserWithRole {
+    id: number;
+    roleId: number;
+    name?: string
+    username?: string;
+    email?: string;
+    imageUrl?: string;
+}
+
+interface RoleData {
+    role: Role;
+    users: User[];
     permissions: Permission[];
 }
 
@@ -129,15 +140,15 @@ export class AccessService {
         return this.userStore.getAllWithId(userIdList);
     }
 
-    async getProjectRoleUsers(projectName: string): Promise<RoleUsers[]> {
+    // Move to project-service?
+    async getProjectRoleUsers(projectName: string): Promise<[Role[], UserWithRole[]]> {
         const roles = await this.store.getRolesForProject(projectName);
-        return Promise.all(roles.map(async role => {
+
+        const users = await Promise.all(roles.map(async role => {
             const users = await this.getUsersForRole(role.id);
-            return {
-                role,
-                users
-            }
+            return users.map(u => ({ ...u, roleId: role.id }))
         }));
+        return [roles, users.flat()];
     }
 
     async createDefaultProjectRoles(owner: User, projectId: string) {
@@ -146,7 +157,7 @@ export class AccessService {
         }
 
         const adminRole = await this.store.createRole(
-            `${projectId} Admin`,
+            `Admin`,
             'project-admin', //TODO: constant
             projectId,
             `Admin role for project = ${projectId}`,
@@ -164,7 +175,7 @@ export class AccessService {
         
 
         const regularRole = await this.store.createRole(
-            `${projectId} Regular`,
+            `Regular`,
             'project-regular',  //TODO: constant
             projectId,
             `Contributor role for project = ${projectId}`,

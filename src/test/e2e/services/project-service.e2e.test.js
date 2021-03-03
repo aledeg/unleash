@@ -247,8 +247,8 @@ test.serial('should add a regular user to the project', async t => {
     const roles = await stores.accessStore.getRolesForProject(project.id);
     const regularRole = roles.find(r => r.type === 'project-regular');
 
-    await projectService.addUser(project.id, regularRole.id, projectMember1);
-    await projectService.addUser(project.id, regularRole.id, projectMember2);
+    await projectService.addUser(project.id, regularRole.id, projectMember1.id);
+    await projectService.addUser(project.id, regularRole.id, projectMember2.id);
 
     const roleWithUsers = await projectService.getUsersWithAccess(
         project.id,
@@ -283,8 +283,8 @@ test.serial('should add admin users to the project', async t => {
     const roles = await stores.accessStore.getRolesForProject(project.id);
     const adminRole = roles.find(r => r.type === 'project-admin');
 
-    await projectService.addUser(project.id, adminRole.id, projectAdmin1);
-    await projectService.addUser(project.id, adminRole.id, projectAdmin2);
+    await projectService.addUser(project.id, adminRole.id, projectAdmin1.id);
+    await projectService.addUser(project.id, adminRole.id, projectAdmin2.id);
 
     const roleWithUsers = await projectService.getUsersWithAccess(
         project.id,
@@ -305,7 +305,7 @@ test.serial('add user only accept to add users to project roles', async t => {
 
     await t.throwsAsync(
         async () => {
-            await projectService.addUser('some-id', regularRole.id, user);
+            await projectService.addUser('some-id', regularRole.id, user.id);
         },
         {
             instanceOf: NotFoundError,

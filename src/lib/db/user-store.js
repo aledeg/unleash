@@ -19,6 +19,8 @@ const USER_COLUMNS = [
     'created_at',
 ];
 
+const USER_COLUMNS_PUBLIC = ['id', 'name', 'username', 'email', 'image_url'];
+
 const emptify = value => {
     if (!value) {
         return undefined;
@@ -105,9 +107,19 @@ class UserStore {
         return users.map(rowToUser);
     }
 
+    async search(query) {
+        const users = await this.db
+            .select(USER_COLUMNS_PUBLIC)
+            .from(TABLE)
+            .where('name', 'ILIKE', `%${query}%`)
+            .orWhere('username', 'ILIKE', `${query}%`)
+            .orWhere('email', 'ILIKE', `${query}%`);
+        return users.map(rowToUser);
+    }
+
     async getAllWithId(userIdList) {
         const users = await this.db
-            .select(USER_COLUMNS)
+            .select(USER_COLUMNS_PUBLIC)
             .from(TABLE)
             .whereIn('id', userIdList);
         return users.map(rowToUser);
