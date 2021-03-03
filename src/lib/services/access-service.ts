@@ -28,7 +28,7 @@ interface RoleUsers {
     users: User[];
 }
 
-interface UserWithRole {
+export interface UserWithRole {
     id: number;
     roleId: number;
     name?: string
@@ -135,7 +135,7 @@ export class AccessService {
         return {role, users}
     }
 
-    private async getUsersForRole(roleId) : Promise<User[]> {
+    async getUsersForRole(roleId) : Promise<User[]> {
         const userIdList = await this.store.getUserIdsForRole(roleId);
         return this.userStore.getAllWithId(userIdList);
     }

@@ -213,20 +213,19 @@ test.serial('should get list of users with access to project', async t => {
         description: 'Blah',
     };
     await projectService.createProject(project, user);
-    const roleWithUsers = await projectService.getUsersWithAccess(
+    const { roles, users } = await projectService.getUsersWithAccess(
         project.id,
         user,
     );
 
-    const admin = roleWithUsers.find(ru => ru.role.type === 'project-admin');
-    const regular = roleWithUsers.find(
-        ru => ru.role.type === 'project-regular',
-    );
+    const admin = roles.find(role => role.type === 'project-admin');
+    const regular = roles.find(role => role.type === 'project-regular');
 
-    t.is(admin.users.length, 1);
-    t.is(admin.users[0].id, user.id);
-    t.is(admin.users[0].name, user.name);
-    t.is(regular.users.length, 0);
+    t.is(users.length, 1);
+    t.is(users[0].id, user.id);
+    t.is(users[0].name, user.name);
+    t.is(users[0].roleId, admin.id);
+    t.truthy(regular);
 });
 
 test.serial('should add a regular user to the project', async t => {
@@ -250,19 +249,14 @@ test.serial('should add a regular user to the project', async t => {
     await projectService.addUser(project.id, regularRole.id, projectMember1.id);
     await projectService.addUser(project.id, regularRole.id, projectMember2.id);
 
-    const roleWithUsers = await projectService.getUsersWithAccess(
-        project.id,
-        user,
-    );
-    const regular = roleWithUsers.find(
-        ru => ru.role.type === 'project-regular',
-    );
+    const { users } = await projectService.getUsersWithAccess(project.id, user);
+    const regularUsers = users.filter(u => u.roleId === regularRole.id);
 
-    t.is(regular.users.length, 2);
-    t.is(regular.users[0].id, projectMember1.id);
-    t.is(regular.users[0].name, projectMember1.name);
-    t.is(regular.users[1].id, projectMember2.id);
-    t.is(regular.users[1].name, projectMember2.name);
+    t.is(regularUsers.length, 2);
+    t.is(regularUsers[0].id, projectMember1.id);
+    t.is(regularUsers[0].name, projectMember1.name);
+    t.is(regularUsers[1].id, projectMember2.id);
+    t.is(regularUsers[1].name, projectMember2.name);
 });
 
 test.serial('should add admin users to the project', async t => {
@@ -280,23 +274,23 @@ test.serial('should add admin users to the project', async t => {
         new User({ name: 'Some Member 2', email: 'admin2@getunleash.io' }),
     );
 
-    const roles = await stores.accessStore.getRolesForProject(project.id);
-    const adminRole = roles.find(r => r.type === 'project-admin');
+    const projectRoles = await stores.accessStore.getRolesForProject(
+        project.id,
+    );
+    const adminRole = projectRoles.find(r => r.type === 'project-admin');
 
     await projectService.addUser(project.id, adminRole.id, projectAdmin1.id);
     await projectService.addUser(project.id, adminRole.id, projectAdmin2.id);
 
-    const roleWithUsers = await projectService.getUsersWithAccess(
-        project.id,
-        user,
-    );
-    const admin = roleWithUsers.find(ru => ru.role.type === 'project-admin');
+    const { users } = await projectService.getUsersWithAccess(project.id, user);
 
-    t.is(admin.users.length, 3);
-    t.is(admin.users[1].id, projectAdmin1.id);
-    t.is(admin.users[1].name, projectAdmin1.name);
-    t.is(admin.users[2].id, projectAdmin2.id);
-    t.is(admin.users[2].name, projectAdmin2.name);
+    const adminUsers = users.filter(u => u.roleId === adminRole.id);
+
+    t.is(adminUsers.length, 3);
+    t.is(adminUsers[1].id, projectAdmin1.id);
+    t.is(adminUsers[1].name, projectAdmin1.name);
+    t.is(adminUsers[2].id, projectAdmin2.id);
+    t.is(adminUsers[2].name, projectAdmin2.name);
 });
 
 test.serial('add user only accept to add users to project roles', async t => {
@@ -309,7 +303,7 @@ test.serial('add user only accept to add users to project roles', async t => {
         },
         {
             instanceOf: NotFoundError,
-            message: 'Could not fine roleId=2',
+            message: 'Could not find roleId=2 on project=some-id',
         },
     );
 });

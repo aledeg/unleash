@@ -1,3 +1,6 @@
+import User from '../user';
+import { AccessService } from './access-service';
+
 const NameExistsError = require('../error/name-exists-error');
 const InvalidOperationError = require('../error/invalid-operation-error');
 const eventType = require('../event-type');
@@ -5,11 +8,27 @@ const { nameType } = require('../routes/admin-api/util');
 const schema = require('./project-schema');
 const NotFoundError = require('../error/notfound-error');
 
+interface Project {
+    id: string;
+    name: string;
+    description?: string;
+}
+
 class ProjectService {
+    private projectStore: any;
+
+    private accessService: AccessService;
+
+    private eventStore: any;
+
+    private featureToggleStore: any;
+
+    private logger: any;
+
     constructor(
         { projectStore, eventStore, featureToggleStore },
         { getLogger },
-        accessService,
+        accessService: AccessService,
     ) {
         this.projectStore = projectStore;
         this.accessService = accessService;
@@ -26,7 +45,7 @@ class ProjectService {
         return this.projectStore.get(id);
     }
 
-    async createProject(newProject, user) {
+    async createProject(newProject: Project, user: User): Promise<Project> {
         const data = await schema.validateAsync(newProject);
         await this.validateUniqueId(data.id);
 
@@ -43,7 +62,7 @@ class ProjectService {
         return data;
     }
 
-    async updateProject(updatedProject, user) {
+    async updateProject(updatedProject: Project, user: User): Promise<void> {
         await this.projectStore.get(updatedProject.id);
         const project = await schema.validateAsync(updatedProject);
 
@@ -57,7 +76,7 @@ class ProjectService {
         });
     }
 
-    async deleteProject(id, user) {
+    async deleteProject(id: string, user: User): Promise<void> {
         if (id === 'default') {
             throw new InvalidOperationError(
                 'You can not delete the default project!',
@@ -84,13 +103,13 @@ class ProjectService {
         await this.projectStore.delete(id);
     }
 
-    async validateId(id) {
+    async validateId(id: string): Promise<boolean> {
         await nameType.validateAsync(id);
         await this.validateUniqueId(id);
         return true;
     }
 
-    async validateUniqueId(id) {
+    async validateUniqueId(id: string): Promise<void> {
         try {
             await this.projectStore.hasProject(id);
         } catch (error) {
@@ -102,7 +121,7 @@ class ProjectService {
         throw new NameExistsError('A project with this id already exists.');
     }
 
-    async getUsersWithAccess(projectId, user) {
+    async getUsersWithAccess(projectId: string, user: User) {
         let [roles, users] = await this.accessService.getProjectRoleUsers(
             projectId,
         );
@@ -120,26 +139,50 @@ class ProjectService {
         };
     }
 
-    async addUser(projectId, roleId, userId) {
-        const roles = await this.accessService.getRolesForProject(projectId);
+    async addUser(
+        projectId: string,
+        roleId: number,
+        userId: number,
+    ): Promise<void> {
+        const [roles, users] = await this.accessService.getProjectRoleUsers(
+            projectId,
+        );
+
         const role = roles.find(r => r.id === roleId);
         if (!role) {
             throw new NotFoundError(
                 `Could not find roleId=${roleId} on project=${projectId}`,
             );
         }
-        // TODO: we must also avoid duplicates!
+
+        const alreadyHasAccess = users.some(u => u.id === userId);
+        if (alreadyHasAccess) {
+            throw new Error(`User already have access to project=${projectId}`);
+        }
+
         await this.accessService.addUserToRole(userId, role.id);
     }
 
-    async removeUser(projectId, roleId, userId) {
+    async removeUser(
+        projectId: string,
+        roleId: number,
+        userId: number,
+    ): Promise<void> {
         const roles = await this.accessService.getRolesForProject(projectId);
         const role = roles.find(r => r.id === roleId);
         if (!role) {
             throw new NotFoundError(
-                `Could not find roleId=${roleId} on project=${projectId}`,
+                `Couldn't find roleId=${roleId} on project=${projectId}`,
             );
         }
+
+        if (role.type === 'project-admin') {
+            const users = await this.accessService.getUsersForRole(role.id);
+            if (users.length < 2) {
+                throw new Error('A project must have at least one admin');
+            }
+        }
+
         // TODO: we must also avoid duplicates!
         await this.accessService.removeUserFromRole(userId, role.id);
     }

@@ -178,7 +178,9 @@ test.serial('should grant user access to project', async t => {
 
     const roles = await accessService.getRolesForProject(project);
 
-    const regularRole = roles.find(r => r.name === `${project} Regular`);
+    const regularRole = roles.find(
+        r => r.name === 'Regular' && r.project === project,
+    );
     await accessService.addUserToRole(sUser.id, regularRole.id);
 
     // Should be able to update feature toggles inside the project
