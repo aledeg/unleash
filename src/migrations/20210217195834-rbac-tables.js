@@ -26,7 +26,7 @@ exports.up = function(db, cb) {
     
       WITH admin AS (
         INSERT INTO roles(name, description, type)
-        VALUES ('Super User', 'Admin the Unleash Instance', 'root')
+        VALUES ('Admin', 'Admin the Unleash Instance', 'root')
         RETURNING id role_id
       )
 

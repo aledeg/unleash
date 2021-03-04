@@ -1,7 +1,8 @@
-import { throws } from 'assert';
 import { AccessStore, Role, Permission } from '../db/access-store';
 import p from '../permissions';
 import User from '../user';
+
+export const ALL_PROJECTS = '*';
 
 const { ADMIN } = p;
 
@@ -53,14 +54,21 @@ enum PermissionType {
     project='project',
 }
 
+export enum RoleType {
+    ADMIN = 'Admin',
+    REGULAR = 'Regular',
+    READ = 'Read',
+}
+
 
 // TODO: Split this in two concerns. 1: Controlling access, 2: managing roles (rbac).
 export class AccessService {
+    public RoleType = RoleType;
     private store: AccessStore;
 
     private userStore: any;
 
-    private logger: Function;
+    private logger: any;
 
     private permissions: IPermission[];
 
@@ -74,11 +82,30 @@ export class AccessService {
         }))
     }
 
+    /**
+     * Used to check if a user has access to the requested resource
+     * 
+     * @param user 
+     * @param permission 
+     * @param projectName 
+     */
     async hasPermission(user: User, permission: string, projectName?: string): Promise<boolean> {
         const permissions = await this.store.getPermissionsForUser(user.id);
+
         return permissions
-            .filter(p => !p.project || p.project === projectName)
-            .some(p => p.permission === permission || p.permission === ADMIN);
+                .filter(p => !p.project || p.project === projectName || p.project === ALL_PROJECTS)
+                .some(p => p.permission === permission || p.permission === ADMIN);
+    }
+
+    /**
+     * Used to check if a user has access to the requested resource
+     * 
+     * @param user 
+     * @param permission 
+     */
+    async hasRootPermission(user: User, permission: string): Promise<boolean> {
+        const permissions = await this.store.getPermissionsForUser(user.id);
+        return permissions.some(p => p.permission === permission || p.permission === ADMIN);
     }
 
     getPermissions(): IPermission[] {
@@ -87,6 +114,22 @@ export class AccessService {
 
     async addUserToRole(userId: number, roleId: number) {
         return this.store.addUserToRole(userId, roleId);
+    }
+
+    async setUserRootRole(userId: number, roleType: RoleType ) {
+        const userRoles = await this.store.getRolesForUserId(userId);
+        const currentRootRoles = userRoles.filter(r => r.type === 'root');
+
+        const roles = await this.getRoles();
+        const role = roles.find(r => r.type === 'root' && r.name === roleType);
+        if(role) {
+            try {
+                await Promise.all(currentRootRoles.map(r => this.store.removeUserFromRole(userId, r.id)));
+                await this.store.addUserToRole(userId, role.id);
+            } catch (error) {
+                this.logger.warn('Could not add role=${roleType} to userId=${userId}');
+            }
+        }
     }
 
     async removeUserFromRole(userId: number, roleId: number) {
@@ -157,10 +200,10 @@ export class AccessService {
         }
 
         const adminRole = await this.store.createRole(
-            `Admin`,
+            RoleType.ADMIN,
             'project-admin', //TODO: constant
             projectId,
-            `Admin role for project = ${projectId}`,
+            `Admin role for project "${projectId}"`,
         );
         await this.store.addPermissionsToRole(
             adminRole.id,
@@ -170,19 +213,20 @@ export class AccessService {
 
         // TODO: remove this when all users is guaranteed to have a unique id. 
         if (owner.id) {
-            this.store.addUserToRole(owner.id, adminRole.id);    
+            this.logger.info(`Making ${owner.id} admin of ${projectId}`);
+            await this.store.addUserToRole(owner.id, adminRole.id);    
         };
         
-
         const regularRole = await this.store.createRole(
-            `Regular`,
+            RoleType.REGULAR,
             'project-regular',  //TODO: constant
             projectId,
-            `Contributor role for project = ${projectId}`,
+            `Contributor role for project "${projectId}"`,
         );
         await this.store.addPermissionsToRole(
             regularRole.id,
             PROJECT_REGULAR,
+            projectId
         );
     }
 }

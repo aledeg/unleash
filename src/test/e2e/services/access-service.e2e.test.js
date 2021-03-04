@@ -3,14 +3,14 @@ const dbInit = require('../helpers/database-init');
 const getLogger = require('../../fixtures/no-logger');
 
 // eslint-disable-next-line import/no-unresolved
-const { AccessService } = require('../../../lib/services/access-service');
+const {
+    AccessService,
+    ALL_PROJECTS,
+} = require('../../../lib/services/access-service');
 const permissions = require('../../../lib/permissions');
 const User = require('../../../lib/user');
 
-// const ProjectService = require('../../../lib/services/project-service');
-
 let stores;
-// let projectStore;
 let accessService;
 
 let regularUser;
@@ -31,7 +31,7 @@ const createSuperUser = async () => {
         new User({ name: 'Alice Admin', email: 'admin@getunleash.io' }),
     );
     const roles = await accessService.getRoles();
-    const superRole = roles.find(r => r.name === 'Super User');
+    const superRole = roles.find(r => r.name === 'Admin');
     await accessService.addUserToRole(user.id, superRole.id);
     return user;
 };
@@ -122,6 +122,52 @@ test.serial('should have project admin to default project', async t => {
     t.true(await accessService.hasPermission(user, CREATE_FEATURE, 'default'));
     t.true(await accessService.hasPermission(user, UPDATE_FEATURE, 'default'));
     t.true(await accessService.hasPermission(user, DELETE_FEATURE, 'default'));
+});
+
+test.serial('should grant regular CREATE_FEATURE on all projects', async t => {
+    const { CREATE_FEATURE } = permissions;
+    const user = regularUser;
+
+    const roles = await accessService.getRoles();
+    const regularRole = roles.find(
+        r => r.name === 'Regular' && r.type === 'root',
+    );
+
+    await accessService.addPermissionToRole(
+        regularRole.id,
+        permissions.CREATE_FEATURE,
+        ALL_PROJECTS,
+    );
+
+    t.true(
+        await accessService.hasPermission(user, CREATE_FEATURE, 'some-project'),
+    );
+});
+
+test.serial('should remove CREATE_FEATURE on all projects', async t => {
+    const { CREATE_FEATURE } = permissions;
+    const user = regularUser;
+
+    const roles = await accessService.getRoles();
+    const regularRole = roles.find(
+        r => r.name === 'Regular' && r.type === 'root',
+    );
+
+    await accessService.addPermissionToRole(
+        regularRole.id,
+        permissions.CREATE_FEATURE,
+        ALL_PROJECTS,
+    );
+
+    await accessService.removePermissionFromRole(
+        regularRole.id,
+        permissions.CREATE_FEATURE,
+        ALL_PROJECTS,
+    );
+
+    t.false(
+        await accessService.hasPermission(user, CREATE_FEATURE, 'some-project'),
+    );
 });
 
 test.serial('admin should be admin', async t => {

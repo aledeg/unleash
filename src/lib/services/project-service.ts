@@ -14,6 +14,8 @@ interface Project {
     description?: string;
 }
 
+const getCreatedBy = (user: User) => user.email || user.username;
+
 class ProjectService {
     private projectStore: any;
 
@@ -55,7 +57,7 @@ class ProjectService {
 
         await this.eventStore.store({
             type: eventType.PROJECT_CREATED,
-            createdBy: user.username,
+            createdBy: getCreatedBy(user),
             data,
         });
 
@@ -71,7 +73,7 @@ class ProjectService {
 
         await this.eventStore.store({
             type: eventType.PROJECT_UPDATED,
-            createdBy: user.username,
+            createdBy: getCreatedBy(user),
             data: project,
         });
     }
@@ -97,7 +99,7 @@ class ProjectService {
 
         await this.eventStore.store({
             type: eventType.PROJECT_DELETED,
-            createdBy: user.username,
+            createdBy: getCreatedBy(user),
             data: { id },
         });
         await this.projectStore.delete(id);

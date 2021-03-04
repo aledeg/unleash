@@ -2,8 +2,27 @@
 
 const MissingPermission = require('../missing-permission');
 const { ADMIN } = require('../permissions');
+const { hasFeatureEnabled } = require('../util/feature-enabled');
 
 module.exports = function(config, permission) {
+    if (permission && hasFeatureEnabled(config, 'rbac')) {
+        return async (req, res, next) => {
+            const { hasPermission, user } = req;
+            const canAccess = await hasPermission(user, permission);
+            if (canAccess) {
+                return next();
+            }
+            return res
+                .status(403)
+                .json(
+                    new MissingPermission({
+                        permission,
+                        message: `You require ${permission} to perform this action`,
+                    }),
+                )
+                .end();
+        };
+    }
     if (!permission || !config.extendedPermissions) {
         return (req, res, next) => next();
     }
