@@ -3,6 +3,7 @@ import Joi from 'joi';
 
 export interface UserData {
     id?: number;
+    isAPI: boolean;
     name?: string;
     username?: string;
     email?: string;
@@ -15,6 +16,8 @@ export interface UserData {
 
 export default class User {
     id: number;
+
+    isAPI: boolean;
 
     name: string;
 
@@ -32,17 +35,20 @@ export default class User {
 
     createdAt: Date;
 
-    constructor({
-        id,
-        name,
-        email,
-        username,
-        imageUrl,
-        permissions,
-        seenAt,
-        loginAttempts,
-        createdAt,
-    }: UserData = {}) {
+    constructor(
+        {
+            id,
+            isAPI,
+            name,
+            email,
+            username,
+            imageUrl,
+            permissions,
+            seenAt,
+            loginAttempts,
+            createdAt,
+        }: UserData = { isAPI: false },
+    ) {
         if (!username && !email) {
             throw new TypeError('Username or Email us required');
         }
@@ -51,6 +57,7 @@ export default class User {
         Joi.assert(name, Joi.string(), 'Name');
 
         this.id = id;
+        this.isAPI = isAPI;
         this.name = name;
         this.username = username;
         this.email = email;

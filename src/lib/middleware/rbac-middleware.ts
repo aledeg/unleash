@@ -1,6 +1,11 @@
 import { isFeatureEnabled, FEATURES } from '../util/feature-enabled';
 
-import { CREATE_FEATURE, UPDATE_FEATURE, DELETE_FEATURE } from '../permissions';
+import {
+    CREATE_FEATURE,
+    UPDATE_FEATURE,
+    DELETE_FEATURE,
+    ADMIN,
+} from '../permissions';
 
 const featurePermissions = [CREATE_FEATURE, UPDATE_FEATURE, DELETE_FEATURE];
 
@@ -18,6 +23,12 @@ const rbacMiddleware = (config: any, { accessService }: any): any => {
     return (req, res, next) => {
         req.checkRbac = async (permission: string) => {
             const { user, params } = req;
+
+            // Support ADMIN API tokens for enterpriseAuthentication.
+            if (user && user.isAPI) {
+                return user.permissions.includes(ADMIN);
+            }
+
             if (!user || !user.id) {
                 logger.error(
                     'RBAC requires a user with a userId on the request.',
