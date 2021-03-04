@@ -1,5 +1,6 @@
 import User from '../user';
 import { AccessService } from './access-service';
+import { isFeatureEnabled, FEATURES } from '../util/feature-enabled';
 
 const NameExistsError = require('../error/name-exists-error');
 const InvalidOperationError = require('../error/invalid-operation-error');
@@ -27,16 +28,19 @@ class ProjectService {
 
     private logger: any;
 
+    private rbacEnabled: boolean;
+
     constructor(
         { projectStore, eventStore, featureToggleStore },
-        { getLogger },
+        config: any,
         accessService: AccessService,
     ) {
         this.projectStore = projectStore;
         this.accessService = accessService;
         this.eventStore = eventStore;
         this.featureToggleStore = featureToggleStore;
-        this.logger = getLogger('services/project-service.js');
+        this.logger = config.getLogger('services/project-service.js');
+        this.rbacEnabled = isFeatureEnabled(config, FEATURES.RBAC);
     }
 
     async getProjects() {
@@ -51,9 +55,11 @@ class ProjectService {
         const data = await schema.validateAsync(newProject);
         await this.validateUniqueId(data.id);
 
-        // TODO: Only if RBAC
         await this.projectStore.create(data);
-        await this.accessService.createDefaultProjectRoles(user, data.id);
+
+        if (this.rbacEnabled) {
+            await this.accessService.createDefaultProjectRoles(user, data.id);
+        }
 
         await this.eventStore.store({
             type: eventType.PROJECT_CREATED,
@@ -103,8 +109,9 @@ class ProjectService {
             data: { id },
         });
 
-        // TODO: if rbac
-        this.accessService.removeDefaultProjectRoles(user, id);
+        if (this.rbacEnabled) {
+            this.accessService.removeDefaultProjectRoles(user, id);
+        }
     }
 
     async validateId(id: string): Promise<boolean> {
@@ -125,6 +132,7 @@ class ProjectService {
         throw new NameExistsError('A project with this id already exists.');
     }
 
+    // RBAC methods
     async getUsersWithAccess(projectId: string, user: User) {
         let [roles, users] = await this.accessService.getProjectRoleUsers(
             projectId,
@@ -187,7 +195,6 @@ class ProjectService {
             }
         }
 
-        // TODO: we must also avoid duplicates!
         await this.accessService.removeUserFromRole(userId, role.id);
     }
 }

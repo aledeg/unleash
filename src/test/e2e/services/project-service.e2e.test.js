@@ -19,9 +19,9 @@ test.before(async () => {
     user = await stores.userStore.insert(
         new User({ name: 'Some Name', email: 'test@getunleash.io' }),
     );
-    // projectStore = stores.projectStore;
-    accessService = new AccessService(stores, { getLogger });
-    projectService = new ProjectService(stores, { getLogger }, accessService);
+    const config = { getLogger, experimental: { rbac: true } };
+    accessService = new AccessService(stores, config);
+    projectService = new ProjectService(stores, config, accessService);
 });
 
 test.after(async () => {
