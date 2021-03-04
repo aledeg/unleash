@@ -81,6 +81,14 @@ export class AccessStore {
             .where('project', projectName);
     }
 
+    async removeRolesForProject(projectId: string): Promise<void> {
+        return this.db(T.ROLES)
+            .where({
+                project: projectId,
+            })
+            .delete();
+    }
+
     async getRolesForUserId(userId: number): Promise<Role[]> {
         return this.db
             .select(['id', 'name', 'type', 'project', 'description'])

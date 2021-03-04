@@ -250,12 +250,12 @@ test.serial('should remove user from role', async t => {
     await accessService.addUserToRole(user.id, regularRole.id);
 
     // check user has one role
-    const userRoles = await accessService.getRolesForUser(user);
+    const userRoles = await accessService.getRolesForUser(user.id);
     t.is(userRoles.length, 1);
     t.is(userRoles[0].name, 'Regular');
 
     await accessService.removeUserFromRole(user.id, regularRole.id);
-    const userRolesAfterRemove = await accessService.getRolesForUser(user);
+    const userRolesAfterRemove = await accessService.getRolesForUser(user.id);
     t.is(userRolesAfterRemove.length, 0);
 });
 

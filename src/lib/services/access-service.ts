@@ -87,25 +87,18 @@ export class AccessService {
      * 
      * @param user 
      * @param permission 
-     * @param projectName 
+     * @param projectId 
      */
-    async hasPermission(user: User, permission: string, projectName?: string): Promise<boolean> {
+    async hasPermission(user: User, permission: string, projectId?: string): Promise<boolean> {
+        //TODO: require that project specific permissions specify projectId!
+
+        this.logger.info(`Checking permission=${permission}, userId=${user.id} projectId=${projectId}`)
+
         const permissions = await this.store.getPermissionsForUser(user.id);
 
         return permissions
-                .filter(p => !p.project || p.project === projectName || p.project === ALL_PROJECTS)
+                .filter(p => !p.project || p.project === projectId || p.project === ALL_PROJECTS)
                 .some(p => p.permission === permission || p.permission === ADMIN);
-    }
-
-    /**
-     * Used to check if a user has access to the requested resource
-     * 
-     * @param user 
-     * @param permission 
-     */
-    async hasRootPermission(user: User, permission: string): Promise<boolean> {
-        const permissions = await this.store.getPermissionsForUser(user.id);
-        return permissions.some(p => p.permission === permission || p.permission === ADMIN);
     }
 
     getPermissions(): IPermission[] {
@@ -136,18 +129,18 @@ export class AccessService {
         return this.store.removeUserFromRole(userId, roleId);
     }
 
-    async addPermissionToRole(roleId: number, permission: string, projectName?: string) {
-        if(isProjectPermission(permission) && !projectName) {
+    async addPermissionToRole(roleId: number, permission: string, projectId?: string) {
+        if(isProjectPermission(permission) && !projectId) {
             throw new Error('You must define a project.')
         } 
-        return this.store.addPermissionsToRole(roleId, [permission], projectName);
+        return this.store.addPermissionsToRole(roleId, [permission], projectId);
     }
 
-    async removePermissionFromRole(roleId: number, permission: string, projectName?: string) {
-        if(isProjectPermission(permission) && !projectName) {
+    async removePermissionFromRole(roleId: number, permission: string, projectId?: string) {
+        if(isProjectPermission(permission) && !projectId) {
             throw new Error('You must define a project.')
         }
-        return this.store.removePermissionFromRole(roleId, permission, projectName);
+        return this.store.removePermissionFromRole(roleId, permission, projectId);
     }
 
     async getRoles(): Promise<Role[]> {
@@ -163,12 +156,12 @@ export class AccessService {
         return { role, permissions, users };
     }
 
-    async getRolesForProject(projectName: string): Promise<Role[]> {
-        return this.store.getRolesForProject(projectName);
+    async getRolesForProject(projectId: string): Promise<Role[]> {
+        return this.store.getRolesForProject(projectId);
     }
 
-    async getRolesForUser(user: User): Promise<Role[]> {
-        return this.store.getRolesForUserId(user.id);
+    async getRolesForUser(userId: number): Promise<Role[]> {
+        return this.store.getRolesForUserId(userId);
     }
 
     async getRoleUsers(roleId) : Promise<RoleUsers> {
@@ -184,8 +177,8 @@ export class AccessService {
     }
 
     // Move to project-service?
-    async getProjectRoleUsers(projectName: string): Promise<[Role[], UserWithRole[]]> {
-        const roles = await this.store.getRolesForProject(projectName);
+    async getProjectRoleUsers(projectId: string): Promise<[Role[], UserWithRole[]]> {
+        const roles = await this.store.getRolesForProject(projectId);
 
         const users = await Promise.all(roles.map(async role => {
             const users = await this.getUsersForRole(role.id);
@@ -213,7 +206,7 @@ export class AccessService {
 
         // TODO: remove this when all users is guaranteed to have a unique id. 
         if (owner.id) {
-            this.logger.info(`Making ${owner.id} admin of ${projectId}`);
+            this.logger.info(`Making ${owner.id} admin of ${projectId} via roleId=${adminRole.id}`);
             await this.store.addUserToRole(owner.id, adminRole.id);    
         };
         
@@ -228,5 +221,10 @@ export class AccessService {
             PROJECT_REGULAR,
             projectId
         );
+    }
+
+    async removeDefaultProjectRoles(owner: User, projectId: string) {
+        this.logger.info(`Removing project roles for ${projectId}`);
+        return this.store.removeRolesForProject(projectId);
     }
 }

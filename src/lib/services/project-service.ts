@@ -51,7 +51,7 @@ class ProjectService {
         const data = await schema.validateAsync(newProject);
         await this.validateUniqueId(data.id);
 
-        // TODO: Validate access to create if RBAC
+        // TODO: Only if RBAC
         await this.projectStore.create(data);
         await this.accessService.createDefaultProjectRoles(user, data.id);
 
@@ -68,7 +68,6 @@ class ProjectService {
         await this.projectStore.get(updatedProject.id);
         const project = await schema.validateAsync(updatedProject);
 
-        // TODO: Validate access to create if RBAC
         await this.projectStore.update(project);
 
         await this.eventStore.store({
@@ -85,7 +84,6 @@ class ProjectService {
             );
         }
 
-        // TODO: Validate access to create if RBAC
         const toggles = await this.featureToggleStore.getFeaturesBy({
             project: id,
             archived: 0,
@@ -97,12 +95,16 @@ class ProjectService {
             );
         }
 
+        await this.projectStore.delete(id);
+
         await this.eventStore.store({
             type: eventType.PROJECT_DELETED,
             createdBy: getCreatedBy(user),
             data: { id },
         });
-        await this.projectStore.delete(id);
+
+        // TODO: if rbac
+        this.accessService.removeDefaultProjectRoles(user, id);
     }
 
     async validateId(id: string): Promise<boolean> {
@@ -128,7 +130,7 @@ class ProjectService {
             projectId,
         );
         if (roles.length === 0) {
-            // ONLY if RBAC is enabled. User should also be required to have CREATE_PROJECT ACCESS!
+            // TODO: ONLY if RBAC is enabled.
             this.logger.warn(`Creating missing roles for project ${projectId}`);
             await this.accessService.createDefaultProjectRoles(user, projectId);
             [roles, users] = await this.accessService.getProjectRoleUsers(

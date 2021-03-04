@@ -6,7 +6,11 @@ interface Config {
     experimental: ExperimentalFlags;
 }
 
-export const hasFeatureEnabled = (
+export enum FEATURES {
+    RBAC = 'rbac',
+}
+
+export const isFeatureEnabled = (
     config: Config,
     experimentalFeature: string,
 ): boolean => {
@@ -17,4 +21,4 @@ export const hasFeatureEnabled = (
     );
 };
 
-module.exports = { hasFeatureEnabled };
+module.exports = { isFeatureEnabled, FEATURES };

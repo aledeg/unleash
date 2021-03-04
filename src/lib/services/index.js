@@ -12,7 +12,11 @@ const { AccessService } = require('./access-service');
 
 module.exports.createServices = (stores, config) => {
     const accessService = new AccessService(stores, config);
-    const featureToggleService = new FeatureToggleService(stores, config);
+    const featureToggleService = new FeatureToggleService(
+        stores,
+        config,
+        accessService,
+    );
     const projectService = new ProjectService(stores, config, accessService);
     const stateService = new StateService(stores, config);
     const strategyService = new StrategyService(stores, config);

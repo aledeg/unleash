@@ -1,29 +1,25 @@
 'use strict';
 
-const MissingPermission = require('../missing-permission');
+const NoAccessError = require('../error/no-access-error');
 const { ADMIN } = require('../permissions');
-const { hasFeatureEnabled } = require('../util/feature-enabled');
+const { isFeatureEnabled, FEATURES } = require('../util/feature-enabled');
 
 module.exports = function(config, permission) {
-    if (permission && hasFeatureEnabled(config, 'rbac')) {
+    if (!permission) {
+        return (req, res, next) => next();
+    }
+    if (isFeatureEnabled(config, FEATURES.RBAC)) {
         return async (req, res, next) => {
-            const { hasPermission, user } = req;
-            const canAccess = await hasPermission(user, permission);
-            if (canAccess) {
+            if (await req.checkRbac(permission)) {
                 return next();
             }
             return res
                 .status(403)
-                .json(
-                    new MissingPermission({
-                        permission,
-                        message: `You require ${permission} to perform this action`,
-                    }),
-                )
+                .json(new NoAccessError(permission))
                 .end();
         };
     }
-    if (!permission || !config.extendedPermissions) {
+    if (!config.extendedPermissions) {
         return (req, res, next) => next();
     }
     return (req, res, next) => {
@@ -37,12 +33,7 @@ module.exports = function(config, permission) {
         }
         return res
             .status(403)
-            .json(
-                new MissingPermission({
-                    permission,
-                    message: `You require ${permission} to perform this action`,
-                }),
-            )
+            .json(new NoAccessError(permission))
             .end();
     };
 };
