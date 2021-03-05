@@ -7,8 +7,6 @@ import {
     ADMIN,
 } from '../permissions';
 
-const featurePermissions = [CREATE_FEATURE, UPDATE_FEATURE, DELETE_FEATURE];
-
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 const rbacMiddleware = (config: any, { accessService }: any): any => {
     if (!isFeatureEnabled(config, FEATURES.RBAC)) {
@@ -38,9 +36,12 @@ const rbacMiddleware = (config: any, { accessService }: any): any => {
 
             let { projectId } = params;
 
-            if (featurePermissions.includes(permission)) {
+            // Temporary workaround to figure our projectId for feature toggle updates.
+            if ([UPDATE_FEATURE, DELETE_FEATURE].includes(permission)) {
                 const { featureName } = params;
                 projectId = await featureToggleStore.getProjectId(featureName);
+            } else if (permission === CREATE_FEATURE) {
+                projectId = req.body.project;
             }
 
             return accessService.hasPermission(user, permission, projectId);
